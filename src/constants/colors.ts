@@ -1,0 +1,14 @@
+const colors = {
+	BLACK: '#201A1E',
+	WHITE: '#C4C6C8',
+	BACKGROUND_PURPLE: '#3A213B',
+	DARK_GRAY: '#6B5F5D',
+	BROWN: '#574A3E',
+	GOLD: '#A89772',
+	SUN: '#DDDBAA',
+	PINK: '#A17A7F',
+	DISABLED_PINK: '#76595D',
+	DEAD_PURPLE: '#6B6149',
+};
+
+export default colors;
