@@ -1,4 +1,4 @@
-import { Playlist, PlaylistList, PlaylistRepeatMode } from 'src/types/data';
+import { Playlist, PlaylistList } from 'src/types/data';
 import { readFile, writeFile } from 'react-native-fs';
 import errors from 'src/constants/errors';
 import { transformToTrack, convertTrackIdToReactKey } from 'src/utils/player';
@@ -23,6 +23,7 @@ export const createPlaylist = async (name: string): Promise<void> => {
 	if (playlists[name]) throw Error(errors.PLAYLIST.CREATE.ALREADY_EXISTS);
 	const newPlaylist: Playlist = {
 		tracksIds: [],
+		repeat: TrackPlayer.REPEAT_MODE_OFF,
 	};
 	playlists[name] = newPlaylist;
 	await setPlaylistsJSON(playlists);
@@ -48,7 +49,7 @@ export const setPlaylistTracks = async (
 	const playlists = source ?? (await getPlaylistsJSON());
 	if (!name) throw Error(errors.PLAYLIST.CREATE.EMPTY_IS_INVALID);
 	if (!playlists[name]) {
-		playlists[name] = { tracksIds: [] };
+		playlists[name] = { tracksIds: [], repeat: TrackPlayer.REPEAT_MODE_OFF };
 	}
 	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 	playlists[name]!.tracksIds = tracks;
@@ -62,7 +63,7 @@ export const addTrackToPlaylist = async (
 	const playlists = await getPlaylistsJSON();
 	if (!name) throw Error(errors.PLAYLIST.CREATE.EMPTY_IS_INVALID);
 	if (!playlists[name]) {
-		playlists[name] = { tracksIds: [] };
+		playlists[name] = { tracksIds: [], repeat: TrackPlayer.REPEAT_MODE_OFF };
 	}
 	if (toAdd instanceof Set) {
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -81,7 +82,7 @@ export const deleteTrackFromPlaylist = async (
 	const playlists = await getPlaylistsJSON();
 	if (!name) throw Error(errors.PLAYLIST.CREATE.EMPTY_IS_INVALID);
 	if (!playlists[name]) {
-		playlists[name] = { tracksIds: [] };
+		playlists[name] = { tracksIds: [], repeat: TrackPlayer.REPEAT_MODE_OFF };
 	}
 	if (toDelete instanceof Set) {
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -119,8 +120,8 @@ interface PlayPlalistOptions {
 	/** If the `name` argument is a string, this is ignored. If `name` is null,
 	 * this option is required and this track will be played */
 	singleTrack?: string;
-	/** If `name` is null, `singleTrack` will be played with this repeat mode */
-	singleTrackRepeatMode?: PlaylistRepeatMode;
+	/** Whether the track should repeat */
+	shouldRepeat?: boolean;
 }
 
 /** Plays a playlist or a single track
@@ -138,7 +139,9 @@ export const playPlaylist = async (
 		}
 		const playlist: Playlist = {
 			tracksIds: [options.singleTrack],
-			repeat: options.singleTrackRepeatMode,
+			repeat: options.shouldRepeat
+				? TrackPlayer.REPEAT_MODE_ONE
+				: TrackPlayer.REPEAT_MODE_OFF,
 		};
 		const internalSettings = await getInternalSettings();
 		internalSettings.currentPlaylist = { ...playlist, name };
