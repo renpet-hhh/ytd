@@ -3,11 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "setupenv": "env-cmd",
-    "android": "npm run setupenv react-native run-android",
-    "ios": "npm run setupenv react-native run-ios",
-    "start": "npm run setupenv react-native start",
-    "test": "npm run setupenv -- jest --verbose",
+    "android": "env-cmd react-native run-android",
+    "ios": "env-cmd react-native run-ios",
+    "start": "env-cmd react-native start",
+    "test": "env-cmd -- jest --verbose",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
