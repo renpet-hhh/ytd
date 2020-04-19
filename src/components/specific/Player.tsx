@@ -5,7 +5,6 @@ import IconButton from 'src/components/generic/IconButton';
 import TrackPlayer from 'react-native-track-player';
 import Slider from '@react-native-community/slider';
 import usePrevious from 'src/hooks/usePrevious';
-import { getInternalSettings } from 'src/services/settings';
 
 const styles = StyleSheet.create({
 	container: {
@@ -152,13 +151,7 @@ const Player = ({}): JSX.Element | null => {
 					setIsSeeking(true);
 				}}
 				onSlidingComplete={v => {
-					const run = async (): Promise<void> => {
-						if (Math.abs(duration - v) < 1) {
-							const repeat = (await getInternalSettings()).currentPlaylist?.repeat;
-							if (repeat === 'track') {
-								v = 0;
-							}
-						}
+					const run = (): void => {
 						setSeekPosition(v);
 						// don't set isSeeking to false yet,
 						// let's wait until position is updated

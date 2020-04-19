@@ -27,7 +27,7 @@
     "react-native-reanimated": "^1.7.1",
     "react-native-safe-area-context": "^0.7.3",
     "react-native-screens": "^2.4.0",
-    "react-native-track-player": "^1.2.2",
+    "react-native-track-player": "git+https://github.com/renpet-hhh/react-native-track-player.git",
     "react-native-vector-icons": "^6.6.0"
   },
   "devDependencies": {

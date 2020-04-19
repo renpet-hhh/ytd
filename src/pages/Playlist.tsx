@@ -6,7 +6,7 @@ import { ScreenProps } from 'src/types/navigation';
 import LocalTrackList from 'src/components/specific/LocalTrackList';
 import { useFocusEffect } from '@react-navigation/native';
 import AbsoluteBackground from 'src/components/generic/TransparentModal';
-import { TrackData, PlaylistRepeatMode } from 'src/types/data';
+import { TrackData } from 'src/types/data';
 import useMultiselect from 'src/hooks/useMultiselect';
 import SelectMenu from 'src/components/generic/SelectMenu';
 import {
@@ -17,7 +17,6 @@ import {
 } from 'src/services/playlist';
 import useSetSwap from 'src/hooks/useSetSwap';
 import useEventCallback from 'src/hooks/useEventCallback';
-import { setInternalSettings, getInternalSettings } from 'src/services/settings';
 import _ from 'lodash';
 import {
 	replaceQueue,
@@ -26,6 +25,7 @@ import {
 	convertReactKeyToTrackId,
 } from 'src/utils/player';
 import useCurrentPlaying from 'src/hooks/useCurrentPlaying';
+import TrackPlayer, { RepeatMode } from 'react-native-track-player';
 
 type Props = ScreenProps<'Playlist'> & {
 	name: string;
@@ -154,7 +154,7 @@ const Playlist = ({ route }: Props): JSX.Element => {
 		setSelectedPlaylistTracks(new Set());
 	}, [setSelectedPlaylistTracks]);
 	const [shouldSave, setShouldSave] = useState(false);
-	const [repeatMode, setRepeatMode] = useState<PlaylistRepeatMode | undefined>(playlist.repeat);
+	const [repeatMode, setRepeatMode] = useState<RepeatMode>(playlist.repeat);
 	const play = useCallback(
 		_.debounce(
 			async (id: string, track: TrackData | undefined, index: number): Promise<void> => {
@@ -289,37 +289,31 @@ const Playlist = ({ route }: Props): JSX.Element => {
 	const changeRepeatMode = useCallback(() => {
 		setRepeatMode(currRepeatMode => {
 			switch (currRepeatMode) {
-				case 'none':
-					return 'playlist';
-				case 'playlist':
-					return 'track';
-				case 'track':
-					return 'none';
+				case TrackPlayer.REPEAT_MODE_OFF:
+					return TrackPlayer.REPEAT_MODE_ALL;
+				case TrackPlayer.REPEAT_MODE_ALL:
+					return TrackPlayer.REPEAT_MODE_ONE;
+				case TrackPlayer.REPEAT_MODE_ONE:
+					return TrackPlayer.REPEAT_MODE_OFF;
 				default:
 					// same as case none
-					return 'playlist';
+					return TrackPlayer.REPEAT_MODE_ALL;
 			}
 		});
 	}, []);
+	const { trackBeingPlayed, playlistBeingPlayed } = useCurrentPlaying();
 	useEffect(() => {
-		/** Here we'll update both the playlist JSON and the internal settings JSON
-		every time repeatMode changes. That way, the user can change the repeat mode
-		while a playlist is being played. However, internal settings will only be updated
-		if this one is the current playlist being played */
 		const run = async (): Promise<void> => {
-			const internalSettings = await getInternalSettings();
-			if (internalSettings.currentPlaylist?.name === name) {
-				internalSettings.currentPlaylist.repeat = repeatMode;
-				await setInternalSettings(internalSettings);
+			if (repeatMode !== undefined) {
+				if (playlistBeingPlayed === name) TrackPlayer.setRepeatMode(repeatMode);
+				const playlists = await getPlaylistsJSON();
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+				if (playlists[name]) playlists[name]!.repeat = repeatMode;
+				await setPlaylistsJSON(playlists);
 			}
-			const playlists = await getPlaylistsJSON();
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			if (playlists[name]) playlists[name]!.repeat = repeatMode;
-			await setPlaylistsJSON(playlists);
 		};
 		run();
-	}, [name, repeatMode]);
-	const { trackBeingPlayed, playlistBeingPlayed } = useCurrentPlaying();
+	}, [repeatMode, name, playlistBeingPlayed]);
 
 	const renderWhenEmpty = useRef(
 		<Text style={styles.emptyPlaylistMessage}>This playlist is empty</Text>,
@@ -352,11 +346,11 @@ const Playlist = ({ route }: Props): JSX.Element => {
 					iconStyle={styles.playlistButtonIcon}
 				/>
 				<IconButton
-					name={repeatMode === 'track' ? 'repeat-one' : 'repeat'}
+					name={repeatMode === TrackPlayer.REPEAT_MODE_ONE ? 'repeat-one' : 'repeat'}
 					onPress={changeRepeatMode}
 					iconStyle={[
 						styles.playlistButtonIcon,
-						repeatMode === 'none' || repeatMode === undefined
+						repeatMode === TrackPlayer.REPEAT_MODE_OFF || repeatMode === undefined
 							? { color: colors.DISABLED_PINK }
 							: null,
 					]}

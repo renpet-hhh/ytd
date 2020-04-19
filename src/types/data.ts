@@ -1,3 +1,5 @@
+import { RepeatMode } from 'react-native-track-player';
+
 export interface TrackData {
 	title: string;
 	artist: string;
@@ -5,11 +7,10 @@ export interface TrackData {
 }
 export type TrackDataList = Record<string, TrackData | undefined>;
 
-export type PlaylistRepeatMode = 'track' | 'playlist' | 'none';
 export interface Playlist {
 	tracksIds: string[];
 	/** Repeat mode for this playlist. Default is none */
-	repeat?: PlaylistRepeatMode;
+	repeat: RepeatMode;
 }
 export type PlaylistList = Record<string, Playlist | undefined>;
 

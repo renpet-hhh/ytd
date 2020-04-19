@@ -66,6 +66,7 @@
 		"node_modules",
 		"babel.config.js",
 		"metro.config.js",
-		"jest.config.js"
+		"jest.config.js",
+		"./src/node_modules"
 	],
 }
