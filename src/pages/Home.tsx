@@ -60,7 +60,7 @@ const Home = ({ navigation }: Props): JSX.Element => {
 				style={styles.menuMainButton}>
 				<Text style={styles.menuMainButtonText}>Settings</Text>
 			</TouchableOpacity>
-			<Text style={styles.versionText}>v. 0.0.1</Text>
+			<Text style={styles.versionText}>v. 0.1.0</Text>
 		</View>
 	);
 };
