@@ -7,7 +7,7 @@ import {
 } from 'react-native-fs';
 import { check, PERMISSIONS, request } from 'react-native-permissions';
 
-const SDDirectoryPath = `${ExternalStorageDirectoryPath}/ytd`;
+const SDDirectoryPath = `${ExternalStorageDirectoryPath}/ytd-dev`;
 export const writeExternalStoragePermission = check(
 	PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE,
 ).then(status => {

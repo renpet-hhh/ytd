@@ -129,7 +129,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.ytd"
+        applicationId "com.ytd.dev"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
