@@ -57,7 +57,9 @@ export const replaceQueue = async (queue: string[]): Promise<void> => {
 	const toRemove = currentQueue.filter(t => t.id !== currTrack).map(t => t.id);
 	// we need to remove separately
 	// react-native-track-player bug, see https://github.com/react-native-kit/react-native-track-player/issues/840
-	await Promise.all(toRemove.map(t => TrackPlayer.remove(t)));
+	for (const idToRemove of toRemove) {
+		await TrackPlayer.remove(idToRemove);
+	}
 	await TrackPlayer.add(before, currTrack);
 	await TrackPlayer.add(after);
 };

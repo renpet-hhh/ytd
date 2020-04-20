@@ -3,8 +3,8 @@ import { readFile, writeFile } from 'react-native-fs';
 import errors from 'src/constants/errors';
 import { transformToTrack, convertTrackIdToReactKey } from 'src/utils/player';
 import TrackPlayer, { Track } from 'react-native-track-player';
-import { getInternalSettings, setInternalSettings } from './settings';
 import { getInfoFilePath } from 'src/constants/localpath';
+import { updateCurrentPlaylist } from 'src/utils/internalSettings';
 
 export const getPlaylistsJSON = async (): Promise<PlaylistList> => {
 	const playlistDataPath = await getInfoFilePath('playlistData');
@@ -143,9 +143,7 @@ export const playPlaylist = async (
 				? TrackPlayer.REPEAT_MODE_ONE
 				: TrackPlayer.REPEAT_MODE_OFF,
 		};
-		const internalSettings = await getInternalSettings();
-		internalSettings.currentPlaylist = { ...playlist, name };
-		await setInternalSettings(internalSettings);
+		await updateCurrentPlaylist(name, playlist);
 		await TrackPlayer.reset();
 		await TrackPlayer.add(await transformToTrack([options.singleTrack]));
 		await TrackPlayer.play();
@@ -157,9 +155,7 @@ export const playPlaylist = async (
 	const playlistTracks: Track[] = await transformToTrack([
 		...convertTrackIdToReactKey(tracksIds),
 	]);
-	const internalSettings = await getInternalSettings();
-	internalSettings.currentPlaylist = { ...playlist, name };
-	await setInternalSettings(internalSettings);
+	await updateCurrentPlaylist(name, playlist);
 	await TrackPlayer.reset();
 	if (options?.startBy) {
 		const before = playlistTracks.slice(0, options.startBy);

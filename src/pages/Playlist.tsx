@@ -153,6 +153,7 @@ const Playlist = ({ route }: Props): JSX.Element => {
 	const deselectAllPlaylistTracks = useCallback((): void => {
 		setSelectedPlaylistTracks(new Set());
 	}, [setSelectedPlaylistTracks]);
+	const { trackBeingPlayed, playlistBeingPlayed } = useCurrentPlaying();
 	const [shouldSave, setShouldSave] = useState(false);
 	const [repeatMode, setRepeatMode] = useState<RepeatMode>(playlist.repeat);
 	const play = useCallback(
@@ -267,9 +268,9 @@ const Playlist = ({ route }: Props): JSX.Element => {
 		if (shouldSave) {
 			setShouldSave(false);
 			setPlaylistTracks(name, convertReactKeyToTrackId(tracks));
-			replaceQueue([...tracks]);
+			if (playlistBeingPlayed === name) replaceQueue([...tracks]);
 		}
-	}, [tracks, shouldSave, name]);
+	}, [tracks, shouldSave, name, playlistBeingPlayed]);
 	const [isEditing, setIsEditing] = useState(false);
 	const startEditing = useCallback(() => {
 		setIsEditing(true);
@@ -277,8 +278,8 @@ const Playlist = ({ route }: Props): JSX.Element => {
 	const finishEditing = useCallback(() => {
 		setIsEditing(false);
 		setPlaylistTracks(name, convertReactKeyToTrackId(tracks));
-		replaceQueue([...tracks]);
-	}, [name, tracks]);
+		if (playlistBeingPlayed === name) replaceQueue([...tracks]);
+	}, [name, playlistBeingPlayed, tracks]);
 	const playInOrder = useCallback(() => {
 		playPlaylist(name, { order: 'inOrder' });
 	}, [name]);
@@ -301,7 +302,6 @@ const Playlist = ({ route }: Props): JSX.Element => {
 			}
 		});
 	}, []);
-	const { trackBeingPlayed, playlistBeingPlayed } = useCurrentPlaying();
 	useEffect(() => {
 		const run = async (): Promise<void> => {
 			if (repeatMode !== undefined) {
