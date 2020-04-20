@@ -2,7 +2,6 @@ import { Track } from 'react-native-track-player';
 import { getFullPath } from 'src/constants/localpath';
 import { getTracksJSON } from 'src/services/download';
 import TrackPlayer from 'react-native-track-player';
-import { getInternalSettings, setInternalSettings } from 'src/services/settings';
 
 export const idFromReactKey = (reactKey: string): string => {
 	return reactKey.replace(/\/.*$/, '');
@@ -46,11 +45,6 @@ export const transformToTrack = async (keys: string[]): Promise<Track[]> => {
 };
 
 export const replaceQueue = async (queue: string[]): Promise<void> => {
-	const internalSettings = await getInternalSettings();
-	internalSettings.shouldIgnoreTrackChanged = true;
-	await setInternalSettings(internalSettings);
-	// track-changed handler won't run
-
 	const tracks = await transformToTrack(queue);
 	const currentQueue = await TrackPlayer.getQueue();
 	const currTrack = await TrackPlayer.getCurrentTrack();
@@ -66,8 +60,4 @@ export const replaceQueue = async (queue: string[]): Promise<void> => {
 	await Promise.all(toRemove.map(t => TrackPlayer.remove(t)));
 	await TrackPlayer.add(before, currTrack);
 	await TrackPlayer.add(after);
-
-	// track handler can run again
-	internalSettings.shouldIgnoreTrackChanged = false;
-	await setInternalSettings(internalSettings);
 };
