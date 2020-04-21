@@ -14,7 +14,7 @@ import errors from 'src/constants/errors';
 import PushNotification from 'react-native-push-notification';
 import { getServerDownloadPath } from 'src/utils/extractIdFromURL';
 import { deleteTracksFromAllPlaylists } from './playlist';
-import { getInfoFilePath, getFullPath } from 'src/constants/localpath';
+import { getInfoFilePath, getFullPath } from 'src/services/settings';
 
 export const getTracksJSON = async (): Promise<TrackDataList> => {
 	const audioDataPath = await getInfoFilePath('audioData');
@@ -38,7 +38,7 @@ export const downloadTrackInfo = (
 		const downloadPath = await getServerDownloadPath('info', url);
 		const res = await axios
 			.get(downloadPath, {
-				//timeout: 10000,
+				timeout: 10000,
 				cancelToken: source.token,
 			})
 			.catch(err => {
@@ -82,7 +82,7 @@ const addTrackToJSON = async (id: string, track: TrackData): Promise<void> => {
 export const deleteTrack = async (toDelete: string | Set<string>): Promise<void> => {
 	const unlinkPromises = [];
 	if (!(toDelete instanceof Set)) toDelete = new Set([toDelete]);
-	const audioDirPath = await getFullPath('/audio');
+	const audioDirPath = await getFullPath('audio');
 	for (const id of toDelete) {
 		unlinkPromises.push(
 			unlink(`${audioDirPath}/${id}`).catch(err =>
@@ -116,8 +116,8 @@ export const downloadTrack = async (url: string): Promise<void> => {
 		id: NOTIFICATION_ID,
 		priority: 'low',
 	});
-	const audioDirPath = await getFullPath('/audio');
-	const tempDirPath = await getFullPath('/temp');
+	const audioDirPath = await getFullPath('audio');
+	const tempDirPath = await getFullPath('temp');
 	const urlEncoded = encodeURIComponent(url);
 	const tempPath = `${tempDirPath}/${urlEncoded}`;
 	let bytesDownloaded = 0;

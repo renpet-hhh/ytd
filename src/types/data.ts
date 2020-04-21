@@ -20,6 +20,7 @@ export interface InternalSettings {
 }
 export interface Settings {
 	server: string;
+	useSDcard: boolean;
 }
 // export as value too so we can check in run time
 export type SettingName = keyof Settings;

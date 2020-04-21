@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'react-native-fs';
 import errors from 'src/constants/errors';
 import { transformToTrack, convertTrackIdToReactKey } from 'src/utils/player';
 import TrackPlayer, { Track } from 'react-native-track-player';
-import { getInfoFilePath } from 'src/constants/localpath';
+import { getInfoFilePath } from 'src/services/settings';
 import { updateCurrentPlaylist } from 'src/utils/internalSettings';
 
 export const getPlaylistsJSON = async (): Promise<PlaylistList> => {

@@ -1,5 +1,5 @@
 import { Track } from 'react-native-track-player';
-import { getFullPath } from 'src/constants/localpath';
+import { getFullPath } from 'src/services/settings';
 import { getTracksJSON } from 'src/services/download';
 import TrackPlayer from 'react-native-track-player';
 
@@ -29,7 +29,7 @@ export const convertReactKeyToTrackId = (reactKeys: Set<string>): string[] => {
  * used in TrackPlayer methods */
 export const transformToTrack = async (keys: string[]): Promise<Track[]> => {
 	const tracks = await getTracksJSON();
-	const audioDirPath = await getFullPath('/audio');
+	const audioDirPath = await getFullPath('audio');
 	return keys.map(key => {
 		const audioId = idFromReactKey(key);
 		const track = tracks[audioId];

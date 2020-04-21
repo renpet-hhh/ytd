@@ -18,5 +18,7 @@ const errors = {
 		SETTING_NAME_IS_INVALID: 'No setting with the name specified exists',
 		FAILED_ASSERTION: 'Some assertion is false',
 	},
+	// this should be catched and not be shown to the user
+	USER_CANCELED: 'USER_CANCELED',
 };
 export default errors;
