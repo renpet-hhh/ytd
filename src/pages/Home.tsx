@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Routes } from 'src/types/navigation';
 import colors from 'src/constants/colors';
+import { appinfo } from 'src/constants/appinfo';
 
 type Props = {
 	navigation: StackNavigationProp<Routes, 'Home'>;
@@ -60,7 +61,7 @@ const Home = ({ navigation }: Props): JSX.Element => {
 				style={styles.menuMainButton}>
 				<Text style={styles.menuMainButtonText}>Settings</Text>
 			</TouchableOpacity>
-			<Text style={styles.versionText}>v. 0.1.0</Text>
+			<Text style={styles.versionText}>{appinfo.versionText}</Text>
 		</View>
 	);
 };
