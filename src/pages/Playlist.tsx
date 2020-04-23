@@ -5,7 +5,7 @@ import IconButton from 'src/components/generic/IconButton';
 import { ScreenProps } from 'src/types/navigation';
 import LocalTrackList from 'src/components/specific/LocalTrackList';
 import { useFocusEffect } from '@react-navigation/native';
-import AbsoluteBackground from 'src/components/generic/TransparentModal';
+import AbsoluteBackground from 'src/components/generic/AbsoluteBackground';
 import { TrackData } from 'src/types/data';
 import useMultiselect from 'src/hooks/useMultiselect';
 import SelectMenu from 'src/components/generic/SelectMenu';
@@ -108,19 +108,21 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	trackToAddContainer: {
-		backgroundColor: colors.BROWN,
+		backgroundColor: colors.BLACK,
 		width: Dimensions.get('window').width * 0.9,
 		maxHeight: Dimensions.get('screen').height * 0.5,
-		borderWidth: 5,
-		borderColor: colors.BACKGROUND_PURPLE,
+		borderWidth: 2,
+		borderColor: colors.SUN,
 		borderRadius: 5,
 		padding: 20,
 	},
 	trackToAdd: {
 		marginVertical: 10,
+		padding: 8,
 	},
 	trackToAddText: {
 		fontSize: 16,
+		color: colors.GOLD,
 	},
 	selectedTrackToAdd: {
 		backgroundColor: colors.DEAD_PURPLE,
@@ -162,7 +164,7 @@ const Playlist = ({ route }: Props): JSX.Element => {
 				if (!track) {
 					Alert.alert(
 						'Error',
-						"Could' find the track, try deleting and downloading it again",
+						"Couldn't find the track, try deleting and downloading it again",
 						[{ text: 'OK', onPress: () => console.log('OK Pressed') }],
 						{ cancelable: true },
 					);
@@ -414,12 +416,14 @@ const Playlist = ({ route }: Props): JSX.Element => {
 			</AbsoluteBackground>
 			<SelectMenu
 				icons={['delete']}
+				descriptions={['Delete track from playlist']}
 				onClear={deselectAllPlaylistTracks}
 				onPress={[deleteSelectedTracksFromPlaylist]}
 				visible={selectedPlaylistTracks.size > 0}
 			/>
 			<SelectMenu
 				icons={['add']}
+				descriptions={['Add track to playlist']}
 				onClear={deselectAllNewTracks}
 				onPress={[addSelectedNewTracks]}
 				visible={selectedNewTracks.size > 0}

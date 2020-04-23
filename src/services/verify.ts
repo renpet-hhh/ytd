@@ -1,7 +1,13 @@
 import errors from 'src/constants/errors';
 import { alertAsync, alertAsyncAndSolveWith } from 'src/utils/promisify';
 import { TrackData } from 'src/types/data';
-import { getTracksJSON, setTracksJSON, downloadTrackInfo } from './download';
+import {
+	getTracksJSON,
+	setTracksJSON,
+	downloadTrackInfo,
+	downloadTrack,
+	deleteTrack,
+} from './download';
 import { writeFile, readDir, unlink, exists } from 'react-native-fs';
 import {
 	getInfoFilePath,
@@ -28,6 +34,59 @@ const getCheckFunctionForSettings = (key: string): ((prop: unknown) => boolean) 
 const handleErr = async (err: Error): Promise<void> => {
 	if (err.message === errors.USER_CANCELED) return;
 	await alertAsync(`Error`, err.message);
+};
+
+const promptRetryDownloadTrack = async (id: string, download: 'info' | 'audio'): Promise<void> => {
+	const url = `https://youtube.com/watch?v=${id}`;
+	let tryAgain = true;
+	const handler = async (): Promise<void> => {
+		await alertAsyncAndSolveWith(`Downloading ${id}`, 'Download failed', 'Try again', () => {
+			tryAgain = true;
+			return Promise.resolve();
+		});
+	};
+	while (tryAgain) {
+		tryAgain = false;
+		if (download === 'info') {
+			const { promise, cancel } = downloadTrackInfo(url);
+			Alert.alert(`Downloading ${id}`, `Please, wait...`, [
+				{ text: 'Cancel', onPress: cancel },
+			]);
+			const trackData = await promise.catch(handler);
+			if (trackData) {
+				const { id: _id, ...info } = trackData;
+				const tracks = await getTracksJSON();
+				tracks[_id] = info;
+				await setTracksJSON(tracks);
+			}
+		} else {
+			const { promise, cancel } = await downloadTrack(url);
+			Alert.alert(`Downloading ${id}`, `Please, wait...`, [
+				{ text: 'Cancel', onPress: cancel },
+			]);
+			await promise.catch(handler);
+		}
+	}
+};
+
+const promptAboutMissingTrack = async (
+	title: string,
+	message: string,
+	id: string,
+	downloadWhat: 'info' | 'audio',
+): Promise<void> => {
+	const removeTrack = `Remove ${id}`;
+	const downloadText = 'Download';
+	const prompt = await alertAsync(title, message, [
+		{ text: 'Ignore' },
+		{ text: removeTrack },
+		{ text: downloadText },
+	]);
+	if (prompt === removeTrack) {
+		await deleteTrack(id);
+	} else if (prompt === downloadText) {
+		await promptRetryDownloadTrack(id, downloadWhat);
+	}
 };
 
 const verifyInitializationIntegrity = async (): Promise<boolean> => {
@@ -104,6 +163,16 @@ const verifySettingsIntegrity = async (): Promise<boolean> => {
 const verifyTracksIntegrity = async (): Promise<boolean> => {
 	const title = 'Verifying integrity... (checking audio)';
 	const tracks = await getTracksJSON();
+	if ('length' in tracks) {
+		await alertAsyncAndSolveWith(
+			title,
+			'audioData.json is an array',
+			'Reset data about tracks',
+			async () => {
+				await writeFile(await getInfoFilePath('audioData'), JSON.stringify({}));
+			},
+		);
+	}
 	const tracksDirPath = await getFullPath('audio');
 	if (!tracksDirPath) {
 		await alertAsync(title, `Audio directory invalid: ${tracksDirPath}`);
@@ -141,15 +210,18 @@ const verifyTracksIntegrity = async (): Promise<boolean> => {
 					await alertAsync(title, `Track with id ${id} has no title information`);
 				}
 				if (!allKeysFromAudioDir.find(k => k === id)) {
-					await alertAsyncAndSolveWith(
+					const removeIdText = 'Remove id from audioData.json';
+					const downloadAudioText = 'Download audio';
+					const prompt = await alertAsync(
 						title,
 						`Audio directory is missing audio with id ${id}`,
-						'Remove id from audioData.json',
-						async () => {
-							delete tracks[id];
-							await setTracksJSON(tracks);
-						},
+						[{ text: 'Ignore' }, { text: removeIdText }, { text: downloadAudioText }],
 					);
+					if (prompt === removeIdText) {
+						await deleteTrack(id);
+					} else if (prompt === downloadAudioText) {
+						await promptRetryDownloadTrack(id, 'audio');
+					}
 				}
 			}
 			for (const k of allKeysFromAudioDir) {
@@ -171,6 +243,9 @@ const verifyTracksIntegrity = async (): Promise<boolean> => {
 							if (track) {
 								const { id, ...info } = track;
 								tracks[id] = info;
+								console.log(id);
+								console.log(info);
+								console.log(tracks);
 								await setTracksJSON(tracks);
 								await alertAsync(title, `Succesfully downloaded info about ${url}`);
 							}
@@ -209,15 +284,19 @@ const verifyPlaylistsIntegrity = async (): Promise<boolean> => {
 		}
 		for (const id of playlist.tracksIds) {
 			if (tracksIds && !tracksIds.find(k => k === id)) {
-				await alertAsync(
+				await promptAboutMissingTrack(
 					title,
 					`Track ${id} in playlist ${name} is not in the audioData.json`,
+					id,
+					'info',
 				);
 			}
 			if (allKeysFromAudioDir && !allKeysFromAudioDir.find(k => k === id)) {
-				await alertAsync(
+				await promptAboutMissingTrack(
 					title,
 					`Track ${id} in playlist ${name} is not in the audio directory`,
+					id,
+					'audio',
 				);
 			}
 		}

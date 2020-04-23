@@ -3,6 +3,5 @@ import { getTracksJSON } from 'src/services/download';
 
 export default BuildSelectableList({
 	getData: getTracksJSON,
-	dataToText: (_key, track) =>
-		track ? track.title + ' - ' + track.artist : 'information for this track is corrupted',
+	dataToText: (_key, track) => (track ? track.title : 'information for this track is corrupted'),
 });

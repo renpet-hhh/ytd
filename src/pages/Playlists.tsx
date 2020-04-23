@@ -14,17 +14,16 @@ import { Routes } from 'src/types/navigation';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import IconButton from 'src/components/generic/IconButton';
 import colors from 'src/constants/colors';
-import DownloadTrack from 'src/components/specific/DownloadTrack';
-import LabeledTextInput from 'src/components/generic/LabeledTextInput';
 import { createPlaylist, deletePlaylist } from 'src/services/playlist';
 import PlaylistList from 'src/components/specific/PlaylistList';
 import { Playlist } from 'src/types/data';
-import AbsoluteBackground from 'src/components/generic/TransparentModal';
 import SelectMenu from 'src/components/generic/SelectMenu';
 import useMultiselect from 'src/hooks/useMultiselect';
 import { ExtractRef } from 'src/types/utils';
 import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import useEventCallback from 'src/hooks/useEventCallback';
+import LabeledTextInputPrompt from 'src/components/generic/LabeledTextInputPrompt';
+import { downloadTrack } from 'src/services/download';
 
 type Props = {
 	navigation: StackNavigationProp<Routes, 'Playlists'>;
@@ -127,7 +126,6 @@ const styles = StyleSheet.create({
 const Playlists = ({ navigation }: Props): JSX.Element => {
 	const [visibleCreatePlaylist, setVisibleCreatePlaylist] = useState(false);
 	const [visibleDownload, setVisibleDownload] = useState(false);
-	const [playlistName, setPlaylistName] = useState('');
 	const playlistListRef: ExtractRef<typeof PlaylistList> = useRef(null);
 	const [selectedPlaylists, setSelectedPlaylists, onSelectChange] = useMultiselect<string>();
 	// refresh the playlist list so that an updated playlist is sent to the Playlist screen
@@ -136,11 +134,10 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 		if (isFocused) playlistListRef.current?.refresh();
 	}, [isFocused]);
 
-	/** Main screen */
-	const onPressNew = useEventCallback((): void => {
+	const showNew = useEventCallback((): void => {
 		setVisibleCreatePlaylist(true);
 	});
-	const onPressDownload = useEventCallback((): void => {
+	const showDownload = useEventCallback((): void => {
 		setVisibleDownload(true);
 	});
 	const onPressPlaylist = useCallback(
@@ -169,26 +166,21 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 		},
 	);
 
-	/** Create Playlist Modal */
-	const onPressCreatePlaylist = useCallback(async (): Promise<void> => {
-		console.log(playlistName);
-		await createPlaylist(playlistName).catch(err => {
+	const onPressCreatePlaylist = useCallback(async (name: string): Promise<void> => {
+		await createPlaylist(name).catch(err => {
 			console.log("Couldn't create playlist: " + err.message);
 		});
 		playlistListRef.current?.refresh();
-	}, [playlistName]);
-	const closeCreatePlayListModal = useCallback((): void => {
-		setVisibleCreatePlaylist(false);
-		setPlaylistName('');
 	}, []);
-	const createPlaylistInputProps: React.ComponentPropsWithoutRef<
-		typeof LabeledTextInput
-	>['inputProps'] = {
-		style: styles.createPlaylistInput,
-		onChangeText: setPlaylistName,
-	};
+	const onPressDownload = useCallback(async (url: string): Promise<void> => {
+		const { promise } = await downloadTrack(url);
+		await promise.catch(() => null);
+	}, []);
+	const closeCreatePlayList = useCallback((): void => {
+		setVisibleCreatePlaylist(false);
+	}, []);
 	/** Download Modal */
-	const closeDownloadModal = useCallback((): void => {
+	const closeDownload = useCallback((): void => {
 		setVisibleDownload(false);
 	}, []);
 
@@ -196,11 +188,11 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 		useCallback(() => {
 			const sub = BackHandler.addEventListener('hardwareBackPress', (): boolean => {
 				if (visibleCreatePlaylist) {
-					closeCreatePlayListModal();
+					closeCreatePlayList();
 					return true;
 				}
 				if (visibleDownload) {
-					closeDownloadModal();
+					closeDownload();
 					return true;
 				}
 				if (selectedPlaylists.size > 0) {
@@ -216,8 +208,8 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 			visibleCreatePlaylist,
 			visibleDownload,
 			selectedPlaylists.size,
-			closeCreatePlayListModal,
-			closeDownloadModal,
+			closeCreatePlayList,
+			closeDownload,
 			deselectAll,
 		]),
 	);
@@ -238,7 +230,7 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 				<Text style={styles.title}>Playlists</Text>
 				<View style={styles.listHeader}>
 					<IconButton
-						onPress={onPressNew}
+						onPress={showNew}
 						name="add"
 						style={[styles.iconContainer, styles.labeledIconContainer]}
 						iconStyle={styles.iconStyle}
@@ -246,7 +238,7 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 						New
 					</IconButton>
 					<IconButton
-						onPress={onPressDownload}
+						onPress={showDownload}
 						name="get-app"
 						style={[styles.iconContainer, styles.labeledIconContainer]}
 						iconStyle={styles.iconStyle}
@@ -266,32 +258,24 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 				</View>
 
 				{/** Modals */}
-				<AbsoluteBackground close={closeDownloadModal} visible={visibleDownload}>
-					<DownloadTrack />
-				</AbsoluteBackground>
-				<AbsoluteBackground
+				<LabeledTextInputPrompt
+					close={closeDownload}
+					visible={visibleDownload}
+					label="URL"
+					placeholder="https://youtube.com/watch?v=..."
+					buttonText="Download"
+					onPress={onPressDownload}
+				/>
+				<LabeledTextInputPrompt
 					visible={visibleCreatePlaylist}
-					close={closeCreatePlayListModal}>
-					<View style={styles.createPlaylistCenter}>
-						<View style={styles.createPlaylistContainer}>
-							<LabeledTextInput
-								style={styles.createPlaylistInputContainer}
-								label="Playlist name"
-								inputProps={createPlaylistInputProps}
-							/>
-							<TouchableOpacity
-								disabled={playlistName === ''}
-								style={[styles.iconContainer, styles.createPlaylistButton]}
-								onPress={onPressCreatePlaylist}>
-								<Text style={[styles.iconText, styles.createPlaylistButtonText]}>
-									Create
-								</Text>
-							</TouchableOpacity>
-						</View>
-					</View>
-				</AbsoluteBackground>
+					close={closeCreatePlayList}
+					label="Playlist name"
+					buttonText="Create"
+					onPress={onPressCreatePlaylist}
+				/>
 				<SelectMenu
 					icons={['delete']}
+					descriptions={['Delete playlist']}
 					onPress={[deleteSelectedPlaylists]}
 					onClear={deselectAll}
 					visible={selectedPlaylists.size > 0}

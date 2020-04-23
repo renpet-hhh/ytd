@@ -34,13 +34,17 @@ const App = ({ sharedUrl }: AppProps): JSX.Element | null => {
 	}
 	const [urlToRetry, setUrlToRetry] = useState<string | null>('');
 	useSharedUrlSubscription((_state, sUrl): void => {
-		downloadTrack(sUrl)
-			.then(() => {
-				setUrlToRetry(url => (url === null ? '' : null)); // refresh child
-			})
-			.catch(err => {
-				if (err.message !== errors.AUDIO.DOWNLOAD.ALREADY_EXISTS) setUrlToRetry(sUrl);
-			});
+		const run = async (): Promise<void> => {
+			const { promise } = await downloadTrack(sUrl);
+			await promise
+				.then(() => {
+					setUrlToRetry(url => (url === null ? '' : null)); // refresh child
+				})
+				.catch(err => {
+					if (err.message !== errors.AUDIO.DOWNLOAD.ALREADY_EXISTS) setUrlToRetry(sUrl);
+				});
+		};
+		run();
 	}, sharedUrl);
 	return (
 		<View style={styles.wrapper}>

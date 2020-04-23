@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions, GestureResponderEvent } from 'react-native';
+import { View, StyleSheet, Dimensions, GestureResponderEvent, ToastAndroid } from 'react-native';
 import colors from 'src/constants/colors';
 import IconButton from './IconButton';
 import _ from 'lodash';
+import { zIndex } from 'src/constants/zIndex';
 
 interface Props {
 	icons: string[];
+	descriptions?: string[];
 	onPress: ((ev: GestureResponderEvent) => void)[];
 	onClear: (ev: GestureResponderEvent) => void;
 	visible: boolean;
@@ -13,11 +15,12 @@ interface Props {
 
 const styles = StyleSheet.create({
 	container: {
-		backgroundColor: colors.DEAD_PURPLE,
+		backgroundColor: colors.BLACK,
 		width: Dimensions.get('window').width,
 		position: 'absolute',
 		top: 0,
 		flexDirection: 'row',
+		zIndex: zIndex.SELECT_MENU,
 	},
 	listContainer: {
 		flex: 1,
@@ -27,24 +30,32 @@ const styles = StyleSheet.create({
 	icon: {
 		fontSize: 32,
 		padding: 16,
+		color: colors.GOLD,
 	},
 	iconButton: {
 		justifyContent: 'center',
-	},
-	separator: {
-		borderRightColor: colors.BROWN,
-		borderRightWidth: 0.5,
 	},
 });
 function returnTrue(): boolean {
 	return true;
 }
 const Item = React.memo(
-	({ icons, onPress, i }: Pick<Props, 'icons' | 'onPress'> & { i: number }): JSX.Element => {
+	({
+		icons,
+		onPress,
+		i,
+		descriptions,
+	}: Pick<Props, 'icons' | 'onPress' | 'descriptions'> & { i: number }): JSX.Element => {
 		return (
 			<IconButton
 				name={icons[i]}
 				onPress={onPress[i]}
+				onLongPress={
+					descriptions?.[i]
+						? () => ToastAndroid.show(descriptions[i], ToastAndroid.SHORT)
+						: undefined
+				}
+				delayLongPress={200}
 				style={styles.iconButton}
 				touchableFlex={0}
 				iconStyle={styles.icon}
@@ -55,7 +66,13 @@ const Item = React.memo(
 	},
 	_.isEqual.bind(_),
 );
-const SelectMenu = ({ icons, onPress, onClear, visible }: Props): JSX.Element | null => {
+const SelectMenu = ({
+	icons,
+	onPress,
+	onClear,
+	visible,
+	descriptions,
+}: Props): JSX.Element | null => {
 	if (!visible) return null;
 	if (icons.length !== onPress.length) {
 		throw Error('Each icon must receive a handler');
@@ -64,13 +81,14 @@ const SelectMenu = ({ icons, onPress, onClear, visible }: Props): JSX.Element | 
 		throw Error('Duplicate icons are not allowed');
 	}
 	const iconListJSX = icons.map((icon, i) => (
-		<Item icons={icons} onPress={onPress} i={i} key={icon} />
+		<Item descriptions={descriptions} icons={icons} onPress={onPress} i={i} key={icon} />
 	));
 	return (
 		<View onStartShouldSetResponder={returnTrue} style={styles.container}>
 			<IconButton
 				style={styles.iconButton}
 				iconStyle={styles.icon}
+				onLongPress={() => ToastAndroid.show('Cancel', ToastAndroid.SHORT)}
 				name="clear"
 				onPress={onClear}
 				testID="clear-icon"
