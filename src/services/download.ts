@@ -101,11 +101,14 @@ export const renameTrack = async (
 	id: string,
 	newName: string,
 	tracksSource?: TrackDataList,
+	renameWhat: 'title' | 'artist' = 'title',
 ): Promise<void> => {
 	const tracks = tracksSource ?? (await getTracksJSON());
 	if (tracks[id]) {
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		tracks[id]!.title = newName;
+		if (renameWhat === 'title' || renameWhat === 'artist') {
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+			tracks[id]![renameWhat] = newName;
+		}
 	}
 	await setTracksJSON(tracks);
 };
