@@ -5,7 +5,7 @@ import IconButton from 'src/components/generic/IconButton';
 import { ScreenProps } from 'src/types/navigation';
 import LocalTrackList from 'src/components/specific/LocalTrackList';
 import { useFocusEffect } from '@react-navigation/native';
-import AbsoluteBackground from 'src/components/generic/TransparentModal';
+import AbsoluteBackground from 'src/components/generic/AbsoluteBackground';
 import { TrackData } from 'src/types/data';
 import useMultiselect from 'src/hooks/useMultiselect';
 import SelectMenu from 'src/components/generic/SelectMenu';
@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
 		color: colors.WHITE,
 		marginVertical: 20,
 		fontSize: 30,
+		textAlign: 'center',
 	},
 	playlistButtonsContainer: {
 		flexDirection: 'row',
@@ -108,19 +109,21 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	trackToAddContainer: {
-		backgroundColor: colors.BROWN,
+		backgroundColor: colors.BLACK,
 		width: Dimensions.get('window').width * 0.9,
 		maxHeight: Dimensions.get('screen').height * 0.5,
-		borderWidth: 5,
-		borderColor: colors.BACKGROUND_PURPLE,
+		borderWidth: 2,
+		borderColor: colors.SUN,
 		borderRadius: 5,
 		padding: 20,
 	},
 	trackToAdd: {
 		marginVertical: 10,
+		padding: 8,
 	},
 	trackToAddText: {
 		fontSize: 16,
+		color: colors.GOLD,
 	},
 	selectedTrackToAdd: {
 		backgroundColor: colors.DEAD_PURPLE,
@@ -153,6 +156,7 @@ const Playlist = ({ route }: Props): JSX.Element => {
 	const deselectAllPlaylistTracks = useCallback((): void => {
 		setSelectedPlaylistTracks(new Set());
 	}, [setSelectedPlaylistTracks]);
+	const { trackBeingPlayed, playlistBeingPlayed } = useCurrentPlaying();
 	const [shouldSave, setShouldSave] = useState(false);
 	const [repeatMode, setRepeatMode] = useState<RepeatMode>(playlist.repeat);
 	const play = useCallback(
@@ -161,7 +165,7 @@ const Playlist = ({ route }: Props): JSX.Element => {
 				if (!track) {
 					Alert.alert(
 						'Error',
-						"Could' find the track, try deleting and downloading it again",
+						"Couldn't find the track, try deleting and downloading it again",
 						[{ text: 'OK', onPress: () => console.log('OK Pressed') }],
 						{ cancelable: true },
 					);
@@ -267,9 +271,9 @@ const Playlist = ({ route }: Props): JSX.Element => {
 		if (shouldSave) {
 			setShouldSave(false);
 			setPlaylistTracks(name, convertReactKeyToTrackId(tracks));
-			replaceQueue([...tracks]);
+			if (playlistBeingPlayed === name) replaceQueue([...tracks]);
 		}
-	}, [tracks, shouldSave, name]);
+	}, [tracks, shouldSave, name, playlistBeingPlayed]);
 	const [isEditing, setIsEditing] = useState(false);
 	const startEditing = useCallback(() => {
 		setIsEditing(true);
@@ -277,8 +281,8 @@ const Playlist = ({ route }: Props): JSX.Element => {
 	const finishEditing = useCallback(() => {
 		setIsEditing(false);
 		setPlaylistTracks(name, convertReactKeyToTrackId(tracks));
-		replaceQueue([...tracks]);
-	}, [name, tracks]);
+		if (playlistBeingPlayed === name) replaceQueue([...tracks]);
+	}, [name, playlistBeingPlayed, tracks]);
 	const playInOrder = useCallback(() => {
 		playPlaylist(name, { order: 'inOrder' });
 	}, [name]);
@@ -414,12 +418,14 @@ const Playlist = ({ route }: Props): JSX.Element => {
 			</AbsoluteBackground>
 			<SelectMenu
 				icons={['delete']}
+				descriptions={['Delete track from playlist']}
 				onClear={deselectAllPlaylistTracks}
 				onPress={[deleteSelectedTracksFromPlaylist]}
 				visible={selectedPlaylistTracks.size > 0}
 			/>
 			<SelectMenu
 				icons={['add']}
+				descriptions={['Add track to playlist']}
 				onClear={deselectAllNewTracks}
 				onPress={[addSelectedNewTracks]}
 				visible={selectedNewTracks.size > 0}

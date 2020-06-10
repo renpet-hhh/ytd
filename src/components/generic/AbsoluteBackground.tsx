@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableWithoutFeedback } from 'react-native';
+import { zIndex } from 'src/constants/zIndex';
 
 interface Props {
 	children: React.ReactElement;
@@ -15,6 +16,7 @@ const styles = StyleSheet.create({
 		left: 0,
 		right: 0,
 		backgroundColor: 'transparent',
+		zIndex: zIndex.ABSOLUTE_BACKGROUND,
 	},
 	full: {
 		flex: 1,

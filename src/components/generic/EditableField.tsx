@@ -78,13 +78,13 @@ const EditableField = ({
 				if (isFocused) {
 					textInputRef.current.blur();
 					setIsEditing(false);
-					onEditComplete?.(text);
+					setText(updateTextTo ?? '');
 				}
 				return isFocused;
 			}),
 		];
 		return () => subs.forEach(sub => sub.remove());
-	}, [onEditComplete, text]);
+	}, [onEditComplete, updateTextTo]);
 	const onSubmitEditing = useCallback(
 		(e: NativeSyntheticEvent<TextInputSubmitEditingEventData>) => {
 			setIsEditing(false);

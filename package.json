@@ -1,13 +1,12 @@
 {
   "name": "ytd",
-  "version": "0.0.1",
+  "version": "0.2.1",
   "private": true,
   "scripts": {
-    "setupenv": "env-cmd",
-    "android": "npm run setupenv react-native run-android",
-    "ios": "npm run setupenv react-native run-ios",
-    "start": "npm run setupenv react-native start",
-    "test": "npm run setupenv -- jest --verbose",
+    "android": "env-cmd react-native run-android",
+    "ios": "env-cmd react-native run-ios",
+    "start": "env-cmd react-native start",
+    "test": "env-cmd -- jest --verbose",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
@@ -27,6 +26,7 @@
     "react-native-reanimated": "^1.7.1",
     "react-native-safe-area-context": "^0.7.3",
     "react-native-screens": "^2.4.0",
+    "react-native-track-player": "git+https://github.com/renpet-hhh/react-native-track-player.git",
     "react-native-vector-icons": "^6.6.0"
   },
   "devDependencies": {

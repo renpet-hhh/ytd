@@ -14,10 +14,10 @@ export const getServerDownloadPath = async (
 	url: string,
 ): Promise<string> => {
 	const serverDomain = (await getSettings()).server;
-	let domain =
-		serverDomain === '' || !serverDomain
-			? process.env.BACKEND_URL_ROOT ?? 'http://localhost:3333/'
-			: serverDomain;
+	let domain = !serverDomain ? process.env.BACKEND_URL_ROOT : serverDomain;
+	if (!domain) {
+		throw Error(`Server domain can't be empty`);
+	}
 	if (domain.endsWith('/')) domain = domain.slice(0, -1);
 	switch (service) {
 		case 'audio':

@@ -1,8 +1,7 @@
 import { Track } from 'react-native-track-player';
-import { getFullPath } from 'src/constants/localpath';
+import { getFullPath } from 'src/services/settings';
 import { getTracksJSON } from 'src/services/download';
 import TrackPlayer from 'react-native-track-player';
-import { getInternalSettings, setInternalSettings } from 'src/services/settings';
 
 export const idFromReactKey = (reactKey: string): string => {
 	return reactKey.replace(/\/.*$/, '');
@@ -30,7 +29,7 @@ export const convertReactKeyToTrackId = (reactKeys: Set<string>): string[] => {
  * used in TrackPlayer methods */
 export const transformToTrack = async (keys: string[]): Promise<Track[]> => {
 	const tracks = await getTracksJSON();
-	const audioDirPath = await getFullPath('/audio');
+	const audioDirPath = await getFullPath('audio');
 	return keys.map(key => {
 		const audioId = idFromReactKey(key);
 		const track = tracks[audioId];
@@ -46,11 +45,6 @@ export const transformToTrack = async (keys: string[]): Promise<Track[]> => {
 };
 
 export const replaceQueue = async (queue: string[]): Promise<void> => {
-	const internalSettings = await getInternalSettings();
-	internalSettings.shouldIgnoreTrackChanged = true;
-	await setInternalSettings(internalSettings);
-	// track-changed handler won't run
-
 	const tracks = await transformToTrack(queue);
 	const currentQueue = await TrackPlayer.getQueue();
 	const currTrack = await TrackPlayer.getCurrentTrack();
@@ -63,11 +57,9 @@ export const replaceQueue = async (queue: string[]): Promise<void> => {
 	const toRemove = currentQueue.filter(t => t.id !== currTrack).map(t => t.id);
 	// we need to remove separately
 	// react-native-track-player bug, see https://github.com/react-native-kit/react-native-track-player/issues/840
-	await Promise.all(toRemove.map(t => TrackPlayer.remove(t)));
+	for (const idToRemove of toRemove) {
+		await TrackPlayer.remove(idToRemove);
+	}
 	await TrackPlayer.add(before, currTrack);
 	await TrackPlayer.add(after);
-
-	// track handler can run again
-	internalSettings.shouldIgnoreTrackChanged = false;
-	await setInternalSettings(internalSettings);
 };

@@ -1,9 +1,9 @@
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import LocalTrackList from 'src/components/specific/LocalTrackList';
 import { Text, StyleSheet, Dimensions, View, BackHandler, Alert, ScrollView } from 'react-native';
 import colors from 'src/constants/colors';
 import { TrackData } from 'src/types/data';
-import { deleteTrack } from 'src/services/download';
+import { deleteTrack, getTracksJSON, renameTrack } from 'src/services/download';
 import useMultiselect from 'src/hooks/useMultiselect';
 import SelectMenu from 'src/components/generic/SelectMenu';
 import { ExtractRef } from 'src/types/utils';
@@ -13,6 +13,8 @@ import useEventCallback from 'src/hooks/useEventCallback';
 import IconButton from 'src/components/generic/IconButton';
 import { playPlaylist } from 'src/services/playlist';
 import { downloadTrack } from 'src/services/download';
+import EditableFieldPrompt from 'src/components/generic/EditableFieldPrompt';
+import errors from 'src/constants/errors';
 
 type Props = ScreenProps<'AllSongs'> & {
 	/** Initially it should be the empty string or null. When the download succeeds,
@@ -70,6 +72,9 @@ const styles = StyleSheet.create({
 const AllSongs = ({ navigation, urlToRetry }: Props): JSX.Element => {
 	const localTracklistRef: ExtractRef<typeof LocalTrackList> = useRef(null);
 	const [selected, setSelected, onSelectChange] = useMultiselect<string>();
+	const [showRenameTitle, setShowRenameTitle] = useState(false);
+	const [showRenameArtist, setShowRenameArtist] = useState(false);
+	const [selectedTrackToRename, setSelectedTrackToRename] = useState<TrackData | null>(null);
 	const deselectAll = useCallback((): void => {
 		setSelected(new Set());
 	}, [setSelected]);
@@ -79,6 +84,14 @@ const AllSongs = ({ navigation, urlToRetry }: Props): JSX.Element => {
 			localTracklistRef.current?.refresh();
 		});
 	});
+	const onRenameTitleSelect = useCallback(() => {
+		setShowRenameArtist(false);
+		setShowRenameTitle(t => !t);
+	}, []);
+	const onRenameArtistSelect = useCallback(() => {
+		setShowRenameTitle(false);
+		setShowRenameArtist(t => !t);
+	}, []);
 	const onPressTrack = useCallback(async (id: string, track: TrackData | undefined): Promise<
 		void
 	> => {
@@ -115,9 +128,35 @@ const AllSongs = ({ navigation, urlToRetry }: Props): JSX.Element => {
 	useEffect(() => {
 		if (urlToRetry === null || urlToRetry === '') localTracklistRef.current?.refresh();
 	}, [urlToRetry]);
-	const retryDownload = useCallback(() => {
-		if (urlToRetry) downloadTrack(urlToRetry).catch(() => null);
+	const retryDownload = useCallback(async () => {
+		if (urlToRetry) {
+			const { promise } = await downloadTrack(urlToRetry);
+			await promise.catch(() => null);
+		}
 	}, [urlToRetry]);
+	const selectedIdToRename = selected.size > 0 ? [...selected.values()][0] : null;
+	useEffect(() => {
+		if ((showRenameTitle || showRenameArtist) && selectedIdToRename) {
+			getTracksJSON().then(tracks => {
+				const track = tracks[selectedIdToRename];
+				if (track) setSelectedTrackToRename(track);
+			});
+		}
+	}, [showRenameTitle, showRenameArtist, selectedIdToRename]);
+	const renameSelectedTrack = useCallback(
+		async (newName: string) => {
+			const renameWhat = showRenameTitle ? 'title' : showRenameArtist ? 'artist' : null;
+			if (!renameWhat) throw Error(errors.INTERNAL.FAILED_ASSERTION);
+			if (selectedIdToRename) {
+				await renameTrack(selectedIdToRename, newName, undefined, renameWhat);
+			}
+			localTracklistRef.current?.refresh();
+			if (showRenameTitle) setShowRenameTitle(false);
+			if (showRenameArtist) setShowRenameArtist(false);
+			deselectAll();
+		},
+		[deselectAll, selectedIdToRename, showRenameArtist, showRenameTitle],
+	);
 	return (
 		<View style={styles.container}>
 			{!!urlToRetry && (
@@ -133,10 +172,33 @@ const AllSongs = ({ navigation, urlToRetry }: Props): JSX.Element => {
 				</View>
 			)}
 			<SelectMenu
-				icons={['delete']}
+				descriptions={
+					selected.size > 1
+						? ['Delete track']
+						: ['Rename artist', 'Rename title', 'Delete track']
+				}
+				icons={selected.size > 1 ? ['delete'] : ['text-format', 'title', 'delete']}
 				onClear={deselectAll}
-				onPress={[onDeleteSelect]}
+				onPress={
+					selected.size > 1
+						? [onDeleteSelect]
+						: [onRenameArtistSelect, onRenameTitleSelect, onDeleteSelect]
+				}
 				visible={selected.size > 0}
+			/>
+			<EditableFieldPrompt
+				visible={showRenameTitle}
+				close={() => setShowRenameTitle(false)}
+				label="Title"
+				updateTextTo={selectedTrackToRename?.title ?? ''}
+				onEditComplete={renameSelectedTrack}
+			/>
+			<EditableFieldPrompt
+				visible={showRenameArtist}
+				close={() => setShowRenameArtist(false)}
+				label="Artist"
+				updateTextTo={selectedTrackToRename?.artist ?? ''}
+				onEditComplete={renameSelectedTrack}
 			/>
 			<View style={styles.listContainer}>
 				<ScrollView
