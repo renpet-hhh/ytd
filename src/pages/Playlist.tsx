@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
 		color: colors.WHITE,
 		marginVertical: 20,
 		fontSize: 30,
+		textAlign: 'center',
 	},
 	playlistButtonsContainer: {
 		flexDirection: 'row',

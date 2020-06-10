@@ -8,6 +8,7 @@ import {
 	TouchableWithoutFeedback,
 	BackHandler,
 	Alert,
+	ScrollView,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Routes } from 'src/types/navigation';
@@ -120,6 +121,10 @@ const styles = StyleSheet.create({
 	},
 	playlistSelectedContainer: {
 		backgroundColor: colors.BROWN,
+	},
+	scrollView: {
+		width: 0.9 * Dimensions.get('screen').width,
+		minHeight: 0.65 * Dimensions.get('screen').height,
 	},
 });
 
@@ -246,7 +251,7 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 						Download
 					</IconButton>
 				</View>
-				<View style={styles.playlistContainer}>
+				<ScrollView style={styles.scrollView} overScrollMode="always">
 					<PlaylistList
 						onPress={onPressPlaylist}
 						selected={selectedPlaylists}
@@ -255,8 +260,7 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 						ref={playlistListRef}
 						selectedTextContainerStyle={styles.playlistSelectedContainer}
 					/>
-				</View>
-
+				</ScrollView>
 				{/** Modals */}
 				<LabeledTextInputPrompt
 					close={closeDownload}
