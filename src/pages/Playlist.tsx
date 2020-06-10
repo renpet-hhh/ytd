@@ -305,6 +305,7 @@ const Playlist = ({ route }: Props): JSX.Element => {
 			}
 		});
 	}, []);
+	const { trackBeingPlayed, playlistBeingPlayed } = useCurrentPlaying();
 	useEffect(() => {
 		const run = async (): Promise<void> => {
 			if (repeatMode !== undefined) {
