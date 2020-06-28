@@ -12,8 +12,8 @@ import SelectMenu from 'src/components/generic/SelectMenu';
 import {
 	setPlaylistTracks,
 	playPlaylist,
-	getPlaylistsJSON,
-	setPlaylistsJSON,
+	getPlaylist,
+	updatePlaylist,
 } from 'src/services/playlist';
 import useSetSwap from 'src/hooks/useSetSwap';
 import useEventCallback from 'src/hooks/useEventCallback';
@@ -305,15 +305,13 @@ const Playlist = ({ route }: Props): JSX.Element => {
 			}
 		});
 	}, []);
-	const { trackBeingPlayed, playlistBeingPlayed } = useCurrentPlaying();
 	useEffect(() => {
 		const run = async (): Promise<void> => {
 			if (repeatMode !== undefined) {
 				if (playlistBeingPlayed === name) TrackPlayer.setRepeatMode(repeatMode);
-				const playlists = await getPlaylistsJSON();
-				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-				if (playlists[name]) playlists[name]!.repeat = repeatMode;
-				await setPlaylistsJSON(playlists);
+				const p = await getPlaylist(name);
+				p.repeat = repeatMode;
+				await updatePlaylist(name, p);
 			}
 		};
 		run();

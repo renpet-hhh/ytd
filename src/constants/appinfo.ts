@@ -1,3 +1,3 @@
 export const appinfo = {
-	versionText: 'v. 0.2.1',
+	versionText: 'v. 1.0.0',
 };

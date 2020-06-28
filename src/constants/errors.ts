@@ -4,6 +4,7 @@ const errors = {
 			ALREADY_EXISTS: 'Playlist already exists',
 			EMPTY_IS_INVALID: 'Playlist must have a name',
 		},
+		NOT_FOUND: 'Playlist not found',
 	},
 	AUDIO: {
 		DOWNLOAD: {
@@ -13,6 +14,7 @@ const errors = {
 				MISSING: 'Downloaded info is missing required fields',
 			},
 		},
+		NOT_FOUND: 'Track not found',
 	},
 	INTERNAL: {
 		SETTING_NAME_IS_INVALID: 'No setting with the name specified exists',

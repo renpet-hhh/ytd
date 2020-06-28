@@ -1,103 +1,76 @@
 import { Playlist, PlaylistList } from 'src/types/data';
-import { readFile, writeFile } from 'react-native-fs';
 import errors from 'src/constants/errors';
 import { transformToTrack, convertTrackIdToReactKey } from 'src/utils/player';
 import TrackPlayer, { Track } from 'react-native-track-player';
-import { getInfoFilePath } from 'src/services/settings';
 import { updateCurrentPlaylist } from 'src/utils/internalSettings';
+import { setData, getData, hasKey } from './fs';
+import AsyncStorage from '@react-native-community/async-storage';
 
-export const getPlaylistsJSON = async (): Promise<PlaylistList> => {
-	const playlistDataPath = await getInfoFilePath('playlistData');
-	const playlistsFileContent = await readFile(playlistDataPath); // might throw
-	const playlists = JSON.parse(playlistsFileContent);
-	return playlists;
+export const updatePlaylists = async (playlists: PlaylistList): Promise<void> => {
+	await setData(playlists, 'playlist@');
 };
-export const setPlaylistsJSON = async (playlists: PlaylistList): Promise<void> => {
-	const playlistDataPath = await getInfoFilePath('playlistData');
-	await writeFile(playlistDataPath, JSON.stringify(playlists));
+export const getPlaylists = async (): Promise<PlaylistList> => {
+	return await getData('playlist@');
+};
+export const updatePlaylist = async (name: string, playlist: Playlist): Promise<void> => {
+	await updatePlaylists({ [name]: playlist });
+};
+export const getPlaylist = async (name: string): Promise<Playlist> => {
+	const playlistStr = await AsyncStorage.getItem('playlist@' + name);
+	if (playlistStr === null) {
+		throw Error(errors.PLAYLIST.NOT_FOUND);
+	}
+	return JSON.parse(playlistStr);
 };
 
 export const createPlaylist = async (name: string): Promise<void> => {
-	const playlists = await getPlaylistsJSON();
 	if (!name) throw Error(errors.PLAYLIST.CREATE.EMPTY_IS_INVALID);
-	if (playlists[name]) throw Error(errors.PLAYLIST.CREATE.ALREADY_EXISTS);
-	const newPlaylist: Playlist = {
+	if (await hasKey(name)) throw Error(errors.PLAYLIST.CREATE.ALREADY_EXISTS);
+	const playlist: Playlist = {
 		tracksIds: [],
 		repeat: TrackPlayer.REPEAT_MODE_OFF,
 	};
-	playlists[name] = newPlaylist;
-	await setPlaylistsJSON(playlists);
+	await updatePlaylist(name, playlist);
 };
 
 export const deletePlaylist = async (toDelete: string | Set<string>): Promise<void> => {
-	const playlists = await getPlaylistsJSON();
 	if (toDelete instanceof Set) {
-		for (const name of toDelete) {
-			delete playlists[name];
-		}
+		await AsyncStorage.multiRemove([...toDelete].map(x => 'playlist@' + x));
 	} else {
-		delete playlists[toDelete];
+		await AsyncStorage.removeItem('playlist@' + toDelete);
 	}
-	await setPlaylistsJSON(playlists);
 };
 
-export const setPlaylistTracks = async (
-	name: string,
-	tracks: string[],
-	source?: Record<string, Playlist | undefined>,
-): Promise<void> => {
-	const playlists = source ?? (await getPlaylistsJSON());
-	if (!name) throw Error(errors.PLAYLIST.CREATE.EMPTY_IS_INVALID);
-	if (!playlists[name]) {
-		playlists[name] = { tracksIds: [], repeat: TrackPlayer.REPEAT_MODE_OFF };
-	}
-	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-	playlists[name]!.tracksIds = tracks;
-	await setPlaylistsJSON(playlists);
+export const setPlaylistTracks = async (name: string, tracks: string[]): Promise<void> => {
+	const playlist = await getPlaylist(name);
+	playlist.tracksIds = tracks;
+	await updatePlaylist(name, playlist);
 };
 
 export const addTrackToPlaylist = async (
 	name: string,
 	toAdd: string | Set<string>,
 ): Promise<void> => {
-	const playlists = await getPlaylistsJSON();
-	if (!name) throw Error(errors.PLAYLIST.CREATE.EMPTY_IS_INVALID);
-	if (!playlists[name]) {
-		playlists[name] = { tracksIds: [], repeat: TrackPlayer.REPEAT_MODE_OFF };
-	}
-	if (toAdd instanceof Set) {
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		playlists[name]!.tracksIds = [...new Set([...playlists[name]!.tracksIds, ...toAdd])];
-	} else {
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		playlists[name]!.tracksIds = [...new Set([...playlists[name]!.tracksIds, toAdd])];
-	}
-	await setPlaylistsJSON(playlists);
+	const playlist = await getPlaylist(name);
+	if (!(toAdd instanceof Set)) toAdd = new Set([toAdd]);
+	playlist.tracksIds = [...playlist.tracksIds, ...toAdd];
+	await updatePlaylist(name, playlist);
 };
 
 export const deleteTrackFromPlaylist = async (
 	name: string,
 	toDelete: string | Set<string>,
 ): Promise<void> => {
-	const playlists = await getPlaylistsJSON();
-	if (!name) throw Error(errors.PLAYLIST.CREATE.EMPTY_IS_INVALID);
-	if (!playlists[name]) {
-		playlists[name] = { tracksIds: [], repeat: TrackPlayer.REPEAT_MODE_OFF };
-	}
-	if (toDelete instanceof Set) {
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		playlists[name]!.tracksIds = playlists[name]!.tracksIds.filter(t => !toDelete.has(t));
-	} else {
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		playlists[name]!.tracksIds = playlists[name]!.tracksIds.filter(t => t !== toDelete);
-	}
-	await setPlaylistsJSON(playlists);
+	const playlist = await getPlaylist(name);
+	if (!(toDelete instanceof Set)) toDelete = new Set([toDelete]);
+	playlist.tracksIds = playlist.tracksIds.filter(x => !(toDelete as Set<string>).has(x));
+	await updatePlaylist(name, playlist);
 };
 
 export const deleteTracksFromAllPlaylists = async (
 	toDelete: string | Set<string>,
 ): Promise<void> => {
-	const playlists = await getPlaylistsJSON();
+	const playlists = await getPlaylists();
 	const filter =
 		toDelete instanceof Set
 			? (id: string) => {
@@ -108,7 +81,7 @@ export const deleteTracksFromAllPlaylists = async (
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		playlists[playlistName]!.tracksIds = playlists[playlistName]!.tracksIds.filter(filter);
 	}
-	await setPlaylistsJSON(playlists);
+	await updatePlaylists(playlists);
 };
 type PlaylistPlayOrder = 'inOrder' | 'random';
 interface PlayPlalistOptions {
@@ -149,8 +122,7 @@ export const playPlaylist = async (
 		await TrackPlayer.play();
 		return;
 	}
-	const playlist = (await getPlaylistsJSON())[name];
-	if (!playlist) throw Error(`Couldn't find playlist with name ${name}`);
+	const playlist = await getPlaylist(name);
 	const { tracksIds } = playlist;
 	const playlistTracks: Track[] = await transformToTrack([
 		...convertTrackIdToReactKey(tracksIds),

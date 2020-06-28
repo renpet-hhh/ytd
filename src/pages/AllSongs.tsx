@@ -3,7 +3,6 @@ import LocalTrackList from 'src/components/specific/LocalTrackList';
 import { Text, StyleSheet, Dimensions, View, BackHandler, Alert, ScrollView } from 'react-native';
 import colors from 'src/constants/colors';
 import { TrackData } from 'src/types/data';
-import { deleteTrack, getTracksJSON, renameTrack } from 'src/services/download';
 import useMultiselect from 'src/hooks/useMultiselect';
 import SelectMenu from 'src/components/generic/SelectMenu';
 import { ExtractRef } from 'src/types/utils';
@@ -15,6 +14,7 @@ import { playPlaylist } from 'src/services/playlist';
 import { downloadTrack } from 'src/services/download';
 import EditableFieldPrompt from 'src/components/generic/EditableFieldPrompt';
 import errors from 'src/constants/errors';
+import { renameTrack, getTrack, deleteTrack } from 'src/services/track';
 
 type Props = ScreenProps<'AllSongs'> & {
 	/** Initially it should be the empty string or null. When the download succeeds,
@@ -137,10 +137,11 @@ const AllSongs = ({ navigation, urlToRetry }: Props): JSX.Element => {
 	const selectedIdToRename = selected.size > 0 ? [...selected.values()][0] : null;
 	useEffect(() => {
 		if ((showRenameTitle || showRenameArtist) && selectedIdToRename) {
-			getTracksJSON().then(tracks => {
-				const track = tracks[selectedIdToRename];
-				if (track) setSelectedTrackToRename(track);
-			});
+			getTrack(selectedIdToRename)
+				.then(track => {
+					setSelectedTrackToRename(track);
+				})
+				.catch(() => null);
 		}
 	}, [showRenameTitle, showRenameArtist, selectedIdToRename]);
 	const renameSelectedTrack = useCallback(
@@ -148,7 +149,7 @@ const AllSongs = ({ navigation, urlToRetry }: Props): JSX.Element => {
 			const renameWhat = showRenameTitle ? 'title' : showRenameArtist ? 'artist' : null;
 			if (!renameWhat) throw Error(errors.INTERNAL.FAILED_ASSERTION);
 			if (selectedIdToRename) {
-				await renameTrack(selectedIdToRename, newName, undefined, renameWhat);
+				await renameTrack(selectedIdToRename, newName, renameWhat);
 			}
 			localTracklistRef.current?.refresh();
 			if (showRenameTitle) setShowRenameTitle(false);

@@ -1,25 +1,12 @@
 import errors from 'src/constants/errors';
 import { alertAsync, alertAsyncAndSolveWith } from 'src/utils/promisify';
-import { TrackData } from 'src/types/data';
-import {
-	getTracksJSON,
-	setTracksJSON,
-	downloadTrackInfo,
-	downloadTrack,
-	deleteTrack,
-} from './download';
-import { writeFile, readDir, unlink, exists } from 'react-native-fs';
-import {
-	getInfoFilePath,
-	getSettings,
-	initSettings,
-	setSettings,
-	getFullPath,
-	SDDirectoryPath,
-	infoFilesName,
-} from './settings';
-import { getPlaylistsJSON } from './playlist';
+import { downloadTrackInfo, downloadTrack } from './download';
+import { readDir, unlink } from 'react-native-fs';
+import { getSettings, initSettings, setSettings, getFullPath } from './settings';
+import { getPlaylists, updatePlaylist } from './playlist';
 import { Alert } from 'react-native';
+import { REPEAT_MODE_OFF } from 'react-native-track-player';
+import { getTracks, updateTrack, deleteTrack } from './track';
 
 const getCheckFunctionForSettings = (key: string): ((prop: unknown) => boolean) => {
 	switch (key) {
@@ -54,10 +41,8 @@ const promptRetryDownloadTrack = async (id: string, download: 'info' | 'audio'):
 			]);
 			const trackData = await promise.catch(handler);
 			if (trackData) {
-				const { id: _id, ...info } = trackData;
-				const tracks = await getTracksJSON();
-				tracks[_id] = info;
-				await setTracksJSON(tracks);
+				delete trackData.id;
+				await updateTrack(id, trackData);
 			}
 		} else {
 			const { promise, cancel } = await downloadTrack(url);
@@ -83,45 +68,14 @@ const promptAboutMissingTrack = async (
 		{ text: downloadText },
 	]);
 	if (prompt === removeTrack) {
-		await deleteTrack(id);
+		if (downloadWhat === 'info') {
+			await updateTrack(id, null);
+		} else {
+			await deleteTrack(id);
+		}
 	} else if (prompt === downloadText) {
 		await promptRetryDownloadTrack(id, downloadWhat);
 	}
-};
-
-const verifyInitializationIntegrity = async (): Promise<boolean> => {
-	const title = 'Verifying integrity... (checking initialization)';
-	const tracks: Record<string, TrackData | undefined> = await getTracksJSON().catch(async () => {
-		await alertAsyncAndSolveWith(
-			title,
-			`Error while reading tracks`,
-			`Reset data about tracks`,
-			async () => {
-				await writeFile(await getInfoFilePath('audioData'), JSON.stringify({})).catch(
-					handleErr,
-				);
-			},
-		);
-		return await getTracksJSON();
-	});
-	const playlists = await getPlaylistsJSON().catch(async () => {
-		await alertAsyncAndSolveWith(
-			title,
-			`Error while reading playlists`,
-			`Reset data about playlists`,
-			async () => {
-				await writeFile(await getInfoFilePath('playlistData'), JSON.stringify({})).catch(
-					handleErr,
-				);
-			},
-		);
-		return await getPlaylistsJSON();
-	});
-
-	if (!tracks || !playlists) {
-		return false;
-	}
-	return true;
 };
 
 const verifySettingsIntegrity = async (): Promise<boolean> => {
@@ -162,17 +116,7 @@ const verifySettingsIntegrity = async (): Promise<boolean> => {
 
 const verifyTracksIntegrity = async (): Promise<boolean> => {
 	const title = 'Verifying integrity... (checking audio)';
-	const tracks = await getTracksJSON();
-	if ('length' in tracks) {
-		await alertAsyncAndSolveWith(
-			title,
-			'audioData.json is an array',
-			'Reset data about tracks',
-			async () => {
-				await writeFile(await getInfoFilePath('audioData'), JSON.stringify({}));
-			},
-		);
-	}
+	const tracks = await getTracks();
 	const tracksDirPath = await getFullPath('audio');
 	if (!tracksDirPath) {
 		await alertAsync(title, `Audio directory invalid: ${tracksDirPath}`);
@@ -192,66 +136,46 @@ const verifyTracksIntegrity = async (): Promise<boolean> => {
 			}
 		}
 		const allKeysFromAudioDir = audioDir.map(d => d.name);
-		if (tracks) {
-			const tracksIds = Object.keys(tracks);
-			for (const id of tracksIds) {
-				const trackData = tracks[id];
-				if (!trackData) {
-					await alertAsync(title, `Track with id ${id} is missing a body`);
-					break;
-				}
-				if (!trackData.artist) {
-					await alertAsync(title, `Track with id ${id} has no artist information`);
-				}
-				if (!trackData.thumbnail) {
-					await alertAsync(title, `Track with id ${id} has no thumbnail information`);
-				}
-				if (!trackData.title) {
-					await alertAsync(title, `Track with id ${id} has no title information`);
-				}
-				if (!allKeysFromAudioDir.find(k => k === id)) {
-					const removeIdText = 'Remove id from audioData.json';
-					const downloadAudioText = 'Download audio';
-					const prompt = await alertAsync(
-						title,
-						`Audio directory is missing audio with id ${id}`,
-						[{ text: 'Ignore' }, { text: removeIdText }, { text: downloadAudioText }],
-					);
-					if (prompt === removeIdText) {
-						await deleteTrack(id);
-					} else if (prompt === downloadAudioText) {
-						await promptRetryDownloadTrack(id, 'audio');
-					}
+		const tracksIds = Object.keys(tracks);
+		for (const id of tracksIds) {
+			const trackData = tracks[id];
+			if (!trackData) {
+				await alertAsync(title, `Track with id ${id} is missing a body`);
+				break;
+			}
+			if (!trackData.artist) {
+				await alertAsync(title, `Track with id ${id} has no artist information`);
+			}
+			if (!trackData.thumbnail) {
+				await alertAsync(title, `Track with id ${id} has no thumbnail information`);
+			}
+			if (!trackData.title) {
+				await alertAsync(title, `Track with id ${id} has no title information`);
+			}
+			if (!allKeysFromAudioDir.find(k => k === id)) {
+				const removeIdText = 'Remove id from audioData.json';
+				const downloadAudioText = 'Download audio';
+				const prompt = await alertAsync(
+					title,
+					`Audio directory is missing audio with id ${id}`,
+					[{ text: 'Ignore' }, { text: removeIdText }, { text: downloadAudioText }],
+				);
+				if (prompt === removeIdText) {
+					await deleteTrack(id);
+				} else if (prompt === downloadAudioText) {
+					await promptRetryDownloadTrack(id, 'audio');
 				}
 			}
-			for (const k of allKeysFromAudioDir) {
-				if (!tracksIds.find(key => key === k)) {
-					await alertAsyncAndSolveWith(
-						title,
-						`audioData.json is missing audio with id ${k}`,
-						'Add id to audioData.json',
-						async () => {
-							const url = `https://youtube.com/watch?v=${k}`;
-							const trackInfoDownload = downloadTrackInfo(url);
-							Alert.alert(`Downloading info about ${k}`, 'Please, wait...', [
-								{
-									text: 'Cancel',
-									onPress: () => trackInfoDownload.cancel(errors.USER_CANCELED),
-								},
-							]);
-							const track = await trackInfoDownload.promise.catch(handleErr);
-							if (track) {
-								const { id, ...info } = track;
-								tracks[id] = info;
-								console.log(id);
-								console.log(info);
-								console.log(tracks);
-								await setTracksJSON(tracks);
-								await alertAsync(title, `Succesfully downloaded info about ${url}`);
-							}
-						},
-					);
-				}
+		}
+		const tracksIdsSet = new Set(tracksIds);
+		for (const k of allKeysFromAudioDir) {
+			if (!tracksIdsSet.has(k)) {
+				await promptAboutMissingTrack(
+					title,
+					`id ${k} is not saved in the storage`,
+					k,
+					'info',
+				);
 			}
 		}
 	}
@@ -260,13 +184,14 @@ const verifyTracksIntegrity = async (): Promise<boolean> => {
 
 const verifyPlaylistsIntegrity = async (): Promise<boolean> => {
 	const title = 'Verifying integrity... (checking playlists)';
-	const playlists = await getPlaylistsJSON();
+	const playlists = await getPlaylists();
 	const playlistNames = Object.keys(playlists);
-	const tracks = await getTracksJSON();
+	const tracks = await getTracks();
 	const tracksIds = Object.keys(tracks);
 	const tracksDirPath = await getFullPath('audio');
 	const audioDir = await readDir(tracksDirPath);
 	const allKeysFromAudioDir = audioDir.map(d => d.name);
+	const allKeysFromAudioDirSet = new Set(allKeysFromAudioDir);
 	if (playlistNames.length !== new Set(playlistNames).size) {
 		await alertAsync(title, `Some playlist has duplicate name`);
 	}
@@ -277,7 +202,15 @@ const verifyPlaylistsIntegrity = async (): Promise<boolean> => {
 			break;
 		}
 		if (typeof playlist.repeat !== 'number') {
-			await alertAsync(title, `Repeat mode of playlist ${name} is not a number`);
+			await alertAsyncAndSolveWith(
+				title,
+				`Repeat mode of playlist ${name} is not a number`,
+				'Autofix',
+				async () => {
+					playlist.repeat = REPEAT_MODE_OFF;
+					await updatePlaylist(name, playlist);
+				},
+			);
 		}
 		if (!playlist.tracksIds || !('length' in playlist.tracksIds)) {
 			await alertAsync(title, `Tracks of playlist ${name} is not an array`);
@@ -286,12 +219,12 @@ const verifyPlaylistsIntegrity = async (): Promise<boolean> => {
 			if (tracksIds && !tracksIds.find(k => k === id)) {
 				await promptAboutMissingTrack(
 					title,
-					`Track ${id} in playlist ${name} is not in the audioData.json`,
+					`Track ${id} in playlist ${name} is not in the storage`,
 					id,
 					'info',
 				);
 			}
-			if (allKeysFromAudioDir && !allKeysFromAudioDir.find(k => k === id)) {
+			if (!allKeysFromAudioDirSet.has(id)) {
 				await promptAboutMissingTrack(
 					title,
 					`Track ${id} in playlist ${name} is not in the audio directory`,
@@ -304,33 +237,8 @@ const verifyPlaylistsIntegrity = async (): Promise<boolean> => {
 	return true;
 };
 
-const verifySDintegrity = async (): Promise<boolean> => {
-	const title = 'Verifying integrity... (checking SDcard)';
-	const settings = await getSettings();
-	const sdpath = await SDDirectoryPath();
-	if (sdpath && !settings.useSDcard) {
-		for (const key in infoFilesName) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const name = (infoFilesName as any)[key];
-			const filepath = `${sdpath}/${name}`;
-			if (await exists(filepath)) {
-				await alertAsyncAndSolveWith(
-					title,
-					`${filepath} exists but you are using the internal memory`,
-					`Delete from sdcard`,
-					async () => {
-						await unlink(filepath).catch(handleErr);
-					},
-				);
-			}
-		}
-	}
-	return true;
-};
-
 export const verifyIntegrity = async (): Promise<void> => {
 	let shouldContinue = true;
-	shouldContinue = await verifyInitializationIntegrity().catch(() => false);
 	if (shouldContinue) {
 		shouldContinue = await verifySettingsIntegrity().catch(() => false);
 	}
@@ -339,9 +247,6 @@ export const verifyIntegrity = async (): Promise<void> => {
 	}
 	if (shouldContinue) {
 		shouldContinue = await verifyPlaylistsIntegrity().catch(() => false);
-	}
-	if (shouldContinue) {
-		shouldContinue = await verifySDintegrity().catch(() => false);
 	}
 	if (!shouldContinue) {
 		await alertAsync('Verification had to be aborted');

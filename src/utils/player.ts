@@ -1,7 +1,7 @@
 import { Track } from 'react-native-track-player';
 import { getFullPath } from 'src/services/settings';
-import { getTracksJSON } from 'src/services/download';
 import TrackPlayer from 'react-native-track-player';
+import { getTracks } from 'src/services/track';
 
 export const idFromReactKey = (reactKey: string): string => {
 	return reactKey.replace(/\/.*$/, '');
@@ -28,7 +28,7 @@ export const convertReactKeyToTrackId = (reactKeys: Set<string>): string[] => {
 /** Merges TrackData information and constructs a Track object that can be
  * used in TrackPlayer methods */
 export const transformToTrack = async (keys: string[]): Promise<Track[]> => {
-	const tracks = await getTracksJSON();
+	const tracks = await getTracks();
 	const audioDirPath = await getFullPath('audio');
 	return keys.map(key => {
 		const audioId = idFromReactKey(key);

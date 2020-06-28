@@ -150,7 +150,7 @@ const Playlists = ({ navigation }: Props): JSX.Element => {
 			if (!playlist) {
 				Alert.alert(
 					'Error',
-					"Could' find the playlist, try deleting and creating it again",
+					"Couldn't find the playlist, try deleting and creating it again",
 					[{ text: 'OK', onPress: () => console.log('OK Pressed') }],
 					{ cancelable: true },
 				);

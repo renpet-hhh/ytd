@@ -2,33 +2,17 @@ import {
 	downloadFile,
 	exists,
 	unlink,
-	readFile,
-	writeFile,
 	stopDownload,
 	moveFile,
 	DownloadFileOptions,
 } from 'react-native-fs';
-import { TrackData, TrackDataList } from 'src/types/data';
+import { TrackData } from 'src/types/data';
 import axios, { Canceler } from 'axios';
 import errors from 'src/constants/errors';
 import PushNotification from 'react-native-push-notification';
 import { getServerDownloadPath } from 'src/utils/extractIdFromURL';
-import { deleteTracksFromAllPlaylists } from './playlist';
-import { getInfoFilePath, getFullPath } from 'src/services/settings';
-
-export const getTracksJSON = async (): Promise<TrackDataList> => {
-	const audioDataPath = await getInfoFilePath('audioData');
-	const content = await readFile(audioDataPath).catch(err => {
-		console.log(err);
-		return '{}';
-	});
-	return JSON.parse(content);
-};
-
-export const setTracksJSON = async (tracks: TrackDataList): Promise<void> => {
-	const audioDataPath = await getInfoFilePath('audioData');
-	await writeFile(audioDataPath, JSON.stringify(tracks));
-};
+import { getFullPath } from './settings';
+import { updateTrack } from './track';
 
 export const downloadTrackInfo = (
 	url: string,
@@ -56,61 +40,6 @@ export const downloadTrackInfo = (
 		throw Error(errors.AUDIO.DOWNLOAD.FAILED);
 	})();
 	return { promise, cancel: source.cancel };
-};
-
-const removeTrackFromJSON = async (toDelete: string | Set<string>): Promise<void> => {
-	const audioDataPath = await getInfoFilePath('audioData');
-	const content = await readFile(audioDataPath);
-	const videos: TrackDataList = JSON.parse(content);
-	if (!(toDelete instanceof Set)) toDelete = new Set([toDelete]);
-	for (const id of toDelete) {
-		delete videos[id];
-	}
-	await writeFile(audioDataPath, JSON.stringify(videos));
-};
-
-const addTrackToJSON = async (id: string, track: TrackData): Promise<void> => {
-	const audioDataPath = await getInfoFilePath('audioData');
-	const file: TrackDataList = JSON.parse(await readFile(audioDataPath));
-	file[id] = track;
-	console.log('writing to file:');
-	console.log(file);
-	await writeFile(audioDataPath, JSON.stringify(file));
-};
-
-/** This function is not async-safe */
-export const deleteTrack = async (toDelete: string | Set<string>): Promise<void> => {
-	const unlinkPromises = [];
-	if (!(toDelete instanceof Set)) toDelete = new Set([toDelete]);
-	const audioDirPath = await getFullPath('audio');
-	for (const id of toDelete) {
-		unlinkPromises.push(
-			unlink(`${audioDirPath}/${id}`).catch(err =>
-				console.warn('Delete audio failed: ' + err.message),
-			),
-		);
-	}
-	await Promise.all([
-		...unlinkPromises,
-		removeTrackFromJSON(toDelete),
-		deleteTracksFromAllPlaylists(toDelete),
-	]);
-};
-
-export const renameTrack = async (
-	id: string,
-	newName: string,
-	tracksSource?: TrackDataList,
-	renameWhat: 'title' | 'artist' = 'title',
-): Promise<void> => {
-	const tracks = tracksSource ?? (await getTracksJSON());
-	if (tracks[id]) {
-		if (renameWhat === 'title' || renameWhat === 'artist') {
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			tracks[id]![renameWhat] = newName;
-		}
-	}
-	await setTracksJSON(tracks);
 };
 
 /**
@@ -220,7 +149,7 @@ export const downloadTrack = async (
 			throw err;
 		});
 		if (downloadResult.statusCode === 200) {
-			await Promise.all([moveFile(tempPath, pathToDownload), addTrackToJSON(id, infoResult)]);
+			await Promise.all([moveFile(tempPath, pathToDownload), updateTrack(id, infoResult)]);
 			console.log('success');
 			const readMB = (bytesDownloaded / 1000000).toFixed(2) + 'MB';
 			setTimeout(

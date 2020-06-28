@@ -1,12 +1,14 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { View, StyleSheet, Text, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, Alert, ActivityIndicator, BackHandler } from 'react-native';
 import colors from 'src/constants/colors';
 import EditableField from 'src/components/generic/EditableField';
-import { getSettings, setSettings, changeStorageMount } from 'src/services/settings';
+import { getSettings, setSettings } from 'src/services/settings';
 import IconButton from 'src/components/generic/IconButton';
 import { Settings as SettingsType } from 'src/types/data';
 import TrackPlayer from 'react-native-track-player';
 import { verifyIntegrity } from 'src/services/verify';
+import { changeStorageMount } from 'src/services/fs';
+import { alertAsync } from 'src/utils/promisify';
 
 const styles = StyleSheet.create({
 	container: {
@@ -51,13 +53,24 @@ const Settings = (): JSX.Element | null => {
 		setLocalSettings(await getSettings());
 	}, []);
 	useEffect(() => {
+		// run only one time (because refreshSettings won't change), to update localSettings
 		refreshSettings();
 	}, [refreshSettings]);
+	useEffect(() => {
+		const subs = [
+			BackHandler.addEventListener('hardwareBackPress', () => {
+				const localSettingsAreSet = localSettings !== null;
+				if (!localSettingsAreSet) {
+					alertAsync('Wait, please', 'Wait until all data is remounted');
+				}
+				return !localSettingsAreSet;
+			}),
+		];
+		return () => subs.forEach(sub => sub.remove());
+	});
 	const saveServer = useCallback(
 		async (text: string): Promise<void> => {
-			const settings = await getSettings();
-			settings.server = text;
-			await setSettings(settings);
+			await setSettings({ server: text });
 			await refreshSettings();
 		},
 		[refreshSettings],
@@ -91,6 +104,7 @@ const Settings = (): JSX.Element | null => {
 						await changeStorageMount().catch((err: Error) => {
 							Alert.alert(`Operation failed`, err.message);
 						});
+						console.log('change mount complete');
 						await refreshSettings();
 					}}
 					textStyle={styles.iconButtonText}

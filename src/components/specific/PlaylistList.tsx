@@ -1,7 +1,7 @@
 import BuildSelectableList from 'src/components/high-order/SelectableList';
-import { getPlaylistsJSON } from 'src/services/playlist';
+import { getPlaylists } from 'src/services/playlist';
 
 export default BuildSelectableList({
-	getData: getPlaylistsJSON,
+	getData: getPlaylists,
 	dataToText: key => key,
 });
